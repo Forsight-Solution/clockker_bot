@@ -1,0 +1,4 @@
+geopy
+telebot
+pytz
+python-dotenv
