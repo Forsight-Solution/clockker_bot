@@ -44,8 +44,36 @@ def handle_message(message):
     # Get the sender's message
     message_text = message.text
 
+    
+        
+ 
+    
+
+    if message_text.startswith('/location'):
+        if sender_id in workers and workers[sender_id]['check_in_time']:
+            if sender_id in workers_location and workers_location[sender_id]:
+                bot.send_message(message.chat.id, 'You have already provided your location.')
+            else:
+                if message.chat.type == 'group':
+                    
+                    manual_location = message_text[10:]  # You can modify this line to capture the location in a format you prefer
+                    workers_location[sender_id] = manual_location
+                    bot.send_message(message.chat.id, f'Location added successfully: {manual_location}')
+
+                elif message.chat.type == 'private':
+                    markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+                    button = KeyboardButton("Send Location", request_location=True)
+                    markup.add(button)
+                    bot.send_message(message.chat.id, "Please share your location by clicking the 'Send Location' button below:", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, 'You must check in before providing your location.')
+
+    
+    
+
+
     # If the sender is checking in
-    if message_text == '/in':
+    elif message_text == '/in':
         if sender_id in workers and workers[sender_id]['check_in_time']:
             bot.send_message(message.chat.id, 'You have already checked in.')
         else:
@@ -97,22 +125,15 @@ def handle_message(message):
                 }
                 workers_location[sender_id] = None  # Reset location after checkout
 
-    # If the sender wants to add their location
-    elif message_text == '/location':
-        # Check if the worker has checked in
-        if sender_id in workers and workers[sender_id]['check_in_time']:
-            # Prompt the user to enter their location
-            markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            button = KeyboardButton("Send Location", request_location=True)
-            markup.add(button)
-            bot.send_message(message.chat.id, "Please share your location by clicking the 'Send Location' button below:", reply_markup=markup)
-        else:
-            bot.send_message(message.chat.id, 'You must check in before providing your location.')
+
 
     else:
         bot.send_message(message.chat.id, 'Please Retry with correct Commands [/in, /out, or /location].')
 
-# Define a function to handle location updates
+
+
+
+# Define a function to handle location updates for groups
 @bot.message_handler(content_types=['location'])
 def handle_location(message):
     # Get the location details from the user's message
@@ -133,6 +154,5 @@ while True:
         bot.polling()
     except Exception as e:
         # Handle exceptions gracefully
-        print(f"An error occurred: {e}")
-        # Optionally, you can add a delay before retrying
-        time.sleep(10) 
+        bot.ideal(f"An error occurred: {e}")
+        
