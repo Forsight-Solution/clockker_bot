@@ -1,7 +1,7 @@
 import telebot
 import datetime
 import gspread
-import time
+# import time
 import pytz
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
@@ -16,6 +16,9 @@ geolocator = Nominatim(user_agent="worker_location")
 dotenv.load_dotenv()
 
 sgt_timezone = pytz.timezone('Asia/Singapore')
+# current_date = datetime.date.today(sgt_timezone)
+# overtime_start = datetime.datetime.combine(current_date, datetime.time(hour=17, tzinfo=sgt_timezone))
+# overtime_end = datetime.datetime.combine(current_date, datetime.time(hour=8, tzinfo=sgt_timezone)) + datetime.timedelta(days=1)
 
 # Set your Telegram bot token
 bot = telebot.TeleBot(os.getenv('TELEGRAM_TOKEN'))
@@ -57,8 +60,11 @@ def handle_message(message):
                 if message.chat.type == 'group':
                     
                     manual_location = message_text[10:]  # You can modify this line to capture the location in a format you prefer
-                    workers_location[sender_id] = manual_location
-                    bot.send_message(message.chat.id, f'Location added successfully: {manual_location}')
+                    if len(manual_location) == 0:
+                        bot.send_message(message.chat.id, 'Please provide a location.')
+                    else:
+                        workers_location[sender_id] = manual_location
+                        bot.send_message(message.chat.id, f'Location added successfully: {manual_location}')
 
                 elif message.chat.type == 'private':
                     markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -97,33 +103,43 @@ def handle_message(message):
             if sender_id not in workers_location or not workers_location[sender_id]:
                 bot.send_message(message.chat.id, 'You must provide your location before checking out. Please use the /location command.')
             else:
-                check_in_time = workers[sender_id]['check_in_time'].astimezone(sgt_timezone).strftime('%I:%M %p')
+                check_in_time = workers[sender_id]['check_in_time']
 
                 # Set the sender's check-out time to SGT
                 workers[sender_id]['check_out_time'] = datetime.datetime.now(sgt_timezone)
-                check_out_time = workers[sender_id]['check_out_time'].strftime('%I:%M %p')
+                check_out_time = workers[sender_id]['check_out_time']
+
+                # overtime_formatted = '00:00:00'  
+
+                # if overtime_start <= check_out_time < overtime_end:
+                #     overtime_timedelta = check_out_time - overtime_start
+                #     overtime_hours = overtime_timedelta.total_seconds() / 3600
+                #     overtime_hours_int = int(overtime_hours)
+                #     overtime_minutes = int((overtime_hours % 1) * 60)
+                #     overtime_seconds = int((overtime_minutes % 1) * 60)
+                #     overtime_formatted = '{:02}:{:02}:{:02}'.format(overtime_hours_int, overtime_minutes, overtime_seconds)
 
                 # Calculate the total hours worked
-                total_hours_worked = workers[sender_id]['check_out_time'] - workers[sender_id]['check_in_time']
+                total_hours_worked = check_out_time - check_in_time
                 hours, remainder = divmod(total_hours_worked.seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 total_hours_worked = '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
 
-                bot.send_message(message.chat.id, '{}, you have successfully checked out at {} SGT. You worked a total hours of {}.'.format(user_name, check_out_time, total_hours_worked))
+                bot.send_message(message.chat.id, '{}, you have successfully checked out at {} SGT. You worked a total hours of {}.'.format(user_name, check_out_time.strftime('%I:%M %p'), total_hours_worked))
                 worksheet.append_row([
                     user_name,
-                    workers[sender_id]['check_in_time'].astimezone(sgt_timezone).strftime('%Y-%m-%d'),
-                    check_in_time,
-                    workers[sender_id]['check_out_time'].astimezone(sgt_timezone).strftime('%Y-%m-%d'),
-                    check_out_time,
+                    check_in_time.astimezone(sgt_timezone).strftime('%Y-%m-%d'),
+                    check_in_time.strftime('%I:%M %p'),
+                    check_out_time.astimezone(sgt_timezone).strftime('%Y-%m-%d'),
+                    check_out_time.strftime('%I:%M %p'),
                     total_hours_worked,
                     workers_location[sender_id]  # Add the location to the spreadsheet data
                 ])
                 workers[sender_id] = {
                     'check_in_time': None,
-                    'check_out_time': None
+                    'check_out_time': check_out_time
                 }
-                workers_location[sender_id] = None  # Reset location after checkout
+                workers_location[sender_id] = None
 
 
 
@@ -155,4 +171,3 @@ while True:
     except Exception as e:
         # Handle exceptions gracefully
         bot.ideal(f"An error occurred: {e}")
-        
