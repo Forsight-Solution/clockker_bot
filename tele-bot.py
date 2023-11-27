@@ -165,9 +165,13 @@ def handle_location(message):
     bot.send_message(message.chat.id, f'Location added successfully: {place_name}')
     
 # Start the Telegram bot
-while True:
-    try:
-        bot.polling()
-    except Exception as e:
-        # Handle exceptions gracefully
-        bot.ideal(f"An error occurred: {e}")
+def start_bot():
+    while True:
+        try:
+            bot.polling()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            time.sleep(10)
+
+if __name__ == "__main__":
+    start_bot()
